@@ -301,46 +301,66 @@ button:disabled {
 }
 
 .preview-section {
-  margin-bottom: 1.15rem;
+  margin-bottom: 1.2rem;
 }
 
 .preview-section p {
   margin: 0.15rem 0;
 }
 
-.sender-section {
+.preview-header {
   display: flex;
   justify-content: space-between;
-  gap: 1.5rem;
   align-items: flex-start;
+  gap: 2rem;
+  margin-bottom: 1.6rem;
+}
+
+.sender-section {
   font-size: 0.95rem;
+  flex: 1;
+  max-width: 60%;
 }
 
 .letter-date {
   font-weight: 600;
+  margin: 0;
   white-space: nowrap;
+  text-align: right;
 }
 
 .recipient-section {
   font-size: 0.95rem;
+  margin-bottom: 1.4rem;
+}
+
+.recipient-label {
+  font-weight: 600;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  margin-bottom: 0.35rem;
 }
 
 .subject-line,
 .reference-line {
+  display: flex;
+  align-items: baseline;
+  gap: 0.6rem;
   font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.04em;
   color: #111827;
+  letter-spacing: 0.01em;
 }
 
 .subject-line span,
 .reference-line span {
   color: #334155;
-  margin-right: 0.5rem;
+  text-transform: uppercase;
+  letter-spacing: 0.12em;
+  font-size: 0.85rem;
 }
 
 .salutation-section p {
-  margin-top: 1.25rem;
+  margin-top: 1.1rem;
   font-weight: 500;
 }
 
@@ -349,13 +369,18 @@ button:disabled {
   text-align: justify;
 }
 
-.body-section .placeholder {
-  font-style: italic;
-  color: #94a3b8;
+.gratitude-section p {
+  margin-top: 0.5rem;
+  font-weight: 500;
+}
+
+.closing-section > p {
+  margin-top: 1.2rem;
+  font-weight: 600;
 }
 
 .signature-block {
-  margin-top: 2.5rem;
+  margin-top: 2rem;
 }
 
 .signature-block p {
@@ -377,6 +402,10 @@ button:disabled {
   margin: 0;
   padding-left: 1.2rem;
   color: #1f2937;
+}
+
+.placeholder-text {
+  color: #94a3b8;
 }
 
 .page-footer {
