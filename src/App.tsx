@@ -1,4 +1,12 @@
-import { forwardRef, useMemo, useRef, useState } from 'react'
+import {
+  forwardRef,
+  useCallback,
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from 'react'
 import type { FormEvent } from 'react'
 import html2canvas from 'html2canvas'
 import jsPDF from 'jspdf'
@@ -574,7 +582,7 @@ function App() {
             </button>
           </div>
         </div>
-        <LetterPreview ref={previewRef} letter={letter} activeStep={activeStepId} />
+        <LetterPreview ref={previewRef} letter={letter} />
       </main>
     </div>
   )
@@ -582,7 +590,6 @@ function App() {
 
 interface PreviewProps {
   letter: LetterData
-  activeStep: StepId
 }
 
 interface DisplayLine {
@@ -590,86 +597,73 @@ interface DisplayLine {
   isPlaceholder: boolean
 }
 
-const PAGE_CHAR_LIMIT = 1300
-
-const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter, activeStep }, ref) => {
-  const bodyParagraphs = useMemo(() => {
-    return letter.body
-      .split(/\n{2,}/)
-      .map((paragraph) => paragraph.trim())
-      .filter(Boolean)
-  }, [letter.body])
-
-  const paginatedBody = useMemo(() => {
-    const paragraphsToPaginate =
-      bodyParagraphs.length > 0 ? bodyParagraphs : defaultPreviewContent.body
-
-    if (paragraphsToPaginate.length === 0) {
-      return [[]]
-    }
-
-    const pages: string[][] = [[]]
-    let currentLength = 0
-
-    paragraphsToPaginate.forEach((paragraph) => {
-      const text = paragraph.trim()
-      const additionLength = text.length
-
-      if (currentLength + additionLength > PAGE_CHAR_LIMIT && pages[pages.length - 1].length > 0) {
-        pages.push([text])
-        currentLength = additionLength
-      } else {
-        pages[pages.length - 1].push(text)
-        currentLength += additionLength
-      }
-    })
-
-    return pages
-  }, [bodyParagraphs])
-
-  const isBodyPlaceholder = bodyParagraphs.length === 0
-
-  const customCopies = useMemo(
-    () =>
-      letter.copies
-        .split(/\n|,/)
-        .map((entry) => entry.trim())
-        .filter(Boolean),
-    [letter.copies],
-  )
-
-  const customEnclosures = useMemo(
-    () =>
-      letter.enclosures
-        .split(/\n|,/)
-        .map((entry) => entry.trim())
-        .filter(Boolean),
-    [letter.enclosures],
-  )
-
-  const copyList = customCopies.length > 0 ? customCopies : defaultPreviewContent.copies
-  const isCopyPlaceholder = customCopies.length === 0
-
-  const enclosureList =
-    customEnclosures.length > 0 ? customEnclosures : defaultPreviewContent.enclosures
-  const isEnclosurePlaceholder = customEnclosures.length === 0
-
-  const formattedDate = formatIndianDate(letter.letterDate) || formatIndianDate(todayIsoDate)
-  const isDatePlaceholder = !letter.letterDate
-
-  const makeLine = (value: string, fallback: string): DisplayLine | null => {
-    const trimmedValue = value.trim()
-    if (trimmedValue) {
-      return { text: trimmedValue, isPlaceholder: false }
-    }
-
-    const trimmedFallback = fallback.trim()
-    if (!trimmedFallback) {
-      return null
-    }
-
-    return { text: trimmedFallback, isPlaceholder: true }
+const makeLine = (value: string, fallback: string): DisplayLine | null => {
+  const trimmedValue = value.trim()
+  if (trimmedValue) {
+    return { text: trimmedValue, isPlaceholder: false }
   }
+
+  const trimmedFallback = fallback.trim()
+  if (!trimmedFallback) {
+    return null
+  }
+
+  return { text: trimmedFallback, isPlaceholder: true }
+}
+
+const splitList = (value: string) =>
+  value
+    .split(/\n|,/)
+    .map((entry) => entry.trim())
+    .filter(Boolean)
+
+type DebouncedFn<T extends (...args: unknown[]) => void> = ((...args: Parameters<T>) => void) & {
+  cancel: () => void
+}
+
+const AddressBlock: React.FC<{ lines: Array<DisplayLine | null> }> = ({ lines }) => (
+  <>
+    {lines
+      .filter((line): line is DisplayLine => Boolean(line))
+      .map((line, index) => (
+        <p key={index} className={line.isPlaceholder ? 'placeholder-text' : undefined}>
+          {line.text}
+        </p>
+      ))}
+  </>
+)
+
+const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter }, ref) => {
+  const [totalPages, setTotalPages] = useState(1)
+  const [currentPage, setCurrentPage] = useState(0)
+  const [pageDimensions, setPageDimensions] = useState({ width: 0, height: 0, gap: 24 })
+  const [fontSize, setFontSize] = useState(12)
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const contentMeasureRef = useRef<HTMLDivElement>(null)
+
+  const debounce = <T extends (...args: unknown[]) => void>(
+    func: T,
+    delay: number,
+  ): DebouncedFn<T> => {
+    let timeoutId: ReturnType<typeof setTimeout>
+    const debounced = (...args: Parameters<T>) => {
+      clearTimeout(timeoutId)
+      timeoutId = window.setTimeout(() => {
+        func(...args)
+      }, delay)
+    }
+
+    debounced.cancel = () => {
+      clearTimeout(timeoutId)
+    }
+
+    return debounced
+  }
+
+  const fallbackDate = formatIndianDate(todayIsoDate)
+  const formattedDate = formatIndianDate(letter.letterDate) || fallbackDate
+  const isDatePlaceholder = !letter.letterDate
 
   const senderAddressLines = [
     makeLine(letter.senderOrganisation, defaultPreviewContent.sender.organisation),
@@ -680,10 +674,12 @@ const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter, active
       `${defaultPreviewContent.sender.city}, ${defaultPreviewContent.sender.state}`,
     ),
     makeLine(
-      letter.senderPostalCode ? `PIN: ${letter.senderPostalCode}` : '',
+      [letter.senderPostalCode].filter(Boolean).length
+        ? `PIN: ${letter.senderPostalCode}`
+        : '',
       `PIN: ${defaultPreviewContent.sender.pin}`,
     ),
-  ].filter((line): line is DisplayLine => Boolean(line))
+  ]
 
   const senderContactLines = [
     makeLine(
@@ -694,7 +690,7 @@ const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter, active
       letter.senderEmail ? `Email: ${letter.senderEmail}` : '',
       defaultPreviewContent.sender.email ? `Email: ${defaultPreviewContent.sender.email}` : '',
     ),
-  ].filter((line): line is DisplayLine => Boolean(line))
+  ]
 
   const recipientAddressLines = [
     makeLine(
@@ -707,276 +703,287 @@ const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter, active
         .join(', '),
     ),
     makeLine(letter.recipientOrganisation, defaultPreviewContent.recipient.organisation),
-    makeLine(letter.recipientAddressLine1, defaultPreviewContent.recipient.addressLine1),
-    makeLine(letter.recipientAddressLine2, defaultPreviewContent.recipient.addressLine2),
     makeLine(
-      [letter.recipientCity, letter.recipientState].filter(Boolean).join(', '),
-      `${defaultPreviewContent.recipient.city}, ${defaultPreviewContent.recipient.state}`,
+      [letter.recipientAddressLine1, letter.recipientAddressLine2]
+        .filter(Boolean)
+        .join(', '),
+      [
+        defaultPreviewContent.recipient.addressLine1,
+        defaultPreviewContent.recipient.addressLine2,
+      ]
+        .filter(Boolean)
+        .join(', '),
     ),
     makeLine(
-      letter.recipientPostalCode ? `PIN: ${letter.recipientPostalCode}` : '',
-      `PIN: ${defaultPreviewContent.recipient.pin}`,
+      [letter.recipientCity, letter.recipientState, letter.recipientPostalCode]
+        .filter(Boolean)
+        .join(', '),
+      [
+        defaultPreviewContent.recipient.city,
+        defaultPreviewContent.recipient.state,
+        defaultPreviewContent.recipient.pin,
+      ]
+        .filter(Boolean)
+        .join(', '),
     ),
     makeLine(letter.recipientCountry, defaultPreviewContent.recipient.country),
-  ].filter((line): line is DisplayLine => Boolean(line))
+  ]
 
   const subjectLine = makeLine(letter.subject, defaultPreviewContent.subject)
   const referenceLine = makeLine(letter.reference, defaultPreviewContent.reference)
   const salutationLine = makeLine(letter.salutation, defaultPreviewContent.salutation)
   const gratitudeLine = makeLine(letter.gratitude, defaultPreviewContent.gratitude)
   const closingLine = makeLine(letter.closing, defaultPreviewContent.closing)
-  const senderNameLine = makeLine(letter.senderName, defaultPreviewContent.senderName)
-  const senderDesignationLine = makeLine(
-    letter.senderDesignation,
-    defaultPreviewContent.senderDesignation,
+
+  const signatureLines = [
+    makeLine(letter.senderName, defaultPreviewContent.senderName),
+    makeLine(letter.senderDesignation, defaultPreviewContent.senderDesignation),
+    makeLine(letter.senderOrganisation, defaultPreviewContent.senderOrganisation),
+  ]
+
+  const bodyContent = letter.body.trim()
+    ? letter.body
+    : defaultPreviewContent.body.join('\n\n')
+  const isBodyPlaceholder = !letter.body.trim()
+
+  const enclosureEntries = splitList(letter.enclosures)
+  const enclosureList =
+    enclosureEntries.length > 0 ? enclosureEntries : defaultPreviewContent.enclosures
+  const isEnclosurePlaceholder = enclosureEntries.length === 0
+
+  const copyEntries = splitList(letter.copies)
+  const copyList = copyEntries.length > 0 ? copyEntries : defaultPreviewContent.copies
+  const isCopyPlaceholder = copyEntries.length === 0
+
+  const letterContent = (
+    <div className="letter-document">
+      <div className="letter-header">
+        <div className="letter-header-group">
+          <div className="letter-address">
+            <p className="letter-label">From</p>
+            <AddressBlock lines={senderAddressLines} />
+            <AddressBlock lines={senderContactLines} />
+          </div>
+          <div className="letter-address">
+            <p className="letter-label">To</p>
+            <AddressBlock lines={recipientAddressLines} />
+          </div>
+        </div>
+        <div className="letter-meta">
+          <p className={`letter-date${isDatePlaceholder ? ' placeholder-text' : ''}`}>
+            Date: {formattedDate}
+          </p>
+        </div>
+      </div>
+
+      {subjectLine && (
+        <div className="letter-subject">
+          <span className="letter-label">Subject</span>
+          <p className={subjectLine.isPlaceholder ? 'placeholder-text' : undefined}>
+            {subjectLine.text}
+          </p>
+        </div>
+      )}
+
+      {referenceLine && (
+        <div className="letter-reference">
+          <span className="letter-label">Ref</span>
+          <p className={referenceLine.isPlaceholder ? 'placeholder-text' : undefined}>
+            {referenceLine.text}
+          </p>
+        </div>
+      )}
+
+      {salutationLine && (
+        <p className={`letter-salutation${salutationLine.isPlaceholder ? ' placeholder-text' : ''}`}>
+          {salutationLine.text}
+        </p>
+      )}
+
+      <div className={`letter-body${isBodyPlaceholder ? ' placeholder-text' : ''}`}>
+        {bodyContent}
+      </div>
+
+      {gratitudeLine && (
+        <p className={`letter-gratitude${gratitudeLine.isPlaceholder ? ' placeholder-text' : ''}`}>
+          {gratitudeLine.text}
+        </p>
+      )}
+
+      {closingLine && (
+        <p className={`letter-closing${closingLine.isPlaceholder ? ' placeholder-text' : ''}`}>
+          {closingLine.text}
+        </p>
+      )}
+
+      <div className="letter-signature">
+        <AddressBlock lines={signatureLines} />
+        <AddressBlock lines={senderContactLines} />
+      </div>
+
+      {enclosureList.length > 0 && (
+        <div className="letter-meta-section">
+          <p className="letter-label">Enclosures</p>
+          <ul>
+            {enclosureList.map((item, index) => (
+              <li
+                key={index}
+                className={isEnclosurePlaceholder ? 'placeholder-text' : undefined}
+              >
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+
+      {copyList.length > 0 && (
+        <div className="letter-meta-section">
+          <p className="letter-label">Copy to</p>
+          <ul>
+            {copyList.map((item, index) => (
+              <li key={index} className={isCopyPlaceholder ? 'placeholder-text' : undefined}>
+                {item}
+              </li>
+            ))}
+          </ul>
+        </div>
+      )}
+    </div>
   )
-  const signatureOrganisationLine = makeLine(
-    letter.senderOrganisation,
-    defaultPreviewContent.senderOrganisation,
-  )
+
+  useLayoutEffect(() => {
+    const calculatePageDimensions = () => {
+      if (!scrollContainerRef.current) {
+        return
+      }
+
+      const containerWidth = scrollContainerRef.current.clientWidth
+      const pageWidth = containerWidth - 64
+
+      if (pageWidth <= 0) {
+        return
+      }
+
+      const pageHeight = pageWidth / (210 / 297)
+      const newFontSize = Math.max(10, pageHeight * 0.013)
+
+      setPageDimensions({ width: pageWidth, height: pageHeight, gap: 24 })
+      setFontSize(newFontSize)
+    }
+
+    const debouncedLayoutUpdate = debounce(calculatePageDimensions, 100)
+    calculatePageDimensions()
+    window.addEventListener('resize', debouncedLayoutUpdate)
+
+    return () => {
+      window.removeEventListener('resize', debouncedLayoutUpdate)
+      debouncedLayoutUpdate.cancel()
+    }
+  }, [])
+
+  useLayoutEffect(() => {
+    if (!contentMeasureRef.current || !pageDimensions.height) {
+      return
+    }
+
+    const contentHeight = contentMeasureRef.current.scrollHeight
+    const pageHeight = pageDimensions.height
+    const newTotalPages = Math.max(1, Math.ceil(contentHeight / pageHeight))
+
+    if (newTotalPages !== totalPages) {
+      setTotalPages(newTotalPages)
+      setCurrentPage((current) => Math.min(current, newTotalPages - 1))
+    }
+  }, [letter, pageDimensions.height, totalPages])
+
+  const handleScroll = useCallback(() => {
+    if (!scrollContainerRef.current || pageDimensions.height === 0) {
+      return
+    }
+
+    const { scrollTop } = scrollContainerRef.current
+    const pageWithGap = pageDimensions.height + pageDimensions.gap
+    const current = Math.floor((scrollTop + pageWithGap / 2) / pageWithGap)
+    setCurrentPage(current)
+  }, [pageDimensions])
+
+  const debouncedScrollHandler = useMemo(() => debounce(handleScroll, 50), [handleScroll])
+
+  useEffect(() => {
+    return () => {
+      debouncedScrollHandler.cancel()
+    }
+  }, [debouncedScrollHandler])
+
+  const scrollToPage = (pageIndex: number) => {
+    if (!scrollContainerRef.current || pageDimensions.height === 0) {
+      return
+    }
+
+    const targetScrollTop = pageIndex * (pageDimensions.height + pageDimensions.gap)
+    scrollContainerRef.current.scrollTo({
+      top: targetScrollTop,
+      behavior: 'smooth',
+    })
+    setCurrentPage(pageIndex)
+  }
 
   return (
-    <div className="preview-scroll" ref={ref} aria-live="polite">
-      {paginatedBody.map((pageParagraphs, pageIndex) => {
-        const isFirst = pageIndex === 0
-        const isLast = pageIndex === paginatedBody.length - 1
+    <div className="preview-wrapper" ref={ref} aria-live="polite">
+      <div
+        className="preview-measure"
+        style={{ width: pageDimensions.width, fontSize: `${fontSize}px` }}
+      >
+        <div ref={contentMeasureRef}>{letterContent}</div>
+      </div>
 
-        return (
-          <div key={pageIndex} className="preview-sheet">
-            <article className="preview-page">
-              <div className="page-inner">
-                {isFirst && (
-                  <>
-                    <header className="preview-header">
-                    <section
-                      className={`preview-section sender-section ${
-                        activeStep === 'sender' ? 'is-highlighted' : ''
-                      }`}
-                    >
-                      {senderAddressLines.map((line, index) => (
-                        <p
-                          key={index}
-                          className={line.isPlaceholder ? 'placeholder-text' : undefined}
-                        >
-                          {line.text}
-                        </p>
-                      ))}
-                      {senderContactLines.map((line, index) => (
-                        <p
-                          key={`contact-${index}`}
-                          className={line.isPlaceholder ? 'placeholder-text' : undefined}
-                        >
-                          {line.text}
-                        </p>
-                      ))}
-                    </section>
-                    <p
-                      className={`letter-date${isDatePlaceholder ? ' placeholder-text' : ''}`}
-                    >
-                      Date: {formattedDate}
-                    </p>
-                  </header>
-
-                  <section
-                    className={`preview-section recipient-section ${
-                      activeStep === 'recipient' ? 'is-highlighted' : ''
-                    }`}
-                  >
-                    <p className="recipient-label">To,</p>
-                    {recipientAddressLines.map((line, index) => (
-                      <p
-                        key={index}
-                        className={line.isPlaceholder ? 'placeholder-text' : undefined}
-                      >
-                        {line.text}
-                      </p>
-                    ))}
-                  </section>
-
-                  {subjectLine && (
-                    <section
-                      className={`preview-section subject-section ${
-                        activeStep === 'subject' ? 'is-highlighted' : ''
-                      }`}
-                    >
-                      <p
-                        className={`subject-line${
-                          subjectLine.isPlaceholder ? ' placeholder-text' : ''
-                        }`}
-                      >
-                        <span>Subject:</span> {subjectLine.text}
-                      </p>
-                    </section>
-                  )}
-
-                  {referenceLine && (
-                    <section
-                      className={`preview-section reference-section ${
-                        activeStep === 'subject' ? 'is-highlighted' : ''
-                      }`}
-                    >
-                      <p
-                        className={`reference-line${
-                          referenceLine.isPlaceholder ? ' placeholder-text' : ''
-                        }`}
-                      >
-                        <span>Ref:</span> {referenceLine.text}
-                      </p>
-                    </section>
-                  )}
-
-                  {salutationLine && (
-                    <section
-                      className={`preview-section salutation-section ${
-                        activeStep === 'body' ? 'is-highlighted' : ''
-                      }`}
-                    >
-                      <p
-                        className={
-                          salutationLine.isPlaceholder ? 'placeholder-text' : undefined
-                        }
-                      >
-                        {salutationLine.text}
-                      </p>
-                    </section>
-                  )}
-                </>
-              )}
-
-              <section
-                className={`preview-section body-section ${
-                  activeStep === 'body' ? 'is-highlighted' : ''
-                }`}
+      <div
+        ref={scrollContainerRef}
+        onScroll={debouncedScrollHandler}
+        className="preview-scroll"
+        role="article"
+      >
+        {pageDimensions.height > 0 &&
+          Array.from({ length: totalPages }).map((_, pageIndex) => (
+            <div
+              key={`page-${pageIndex}`}
+              className="preview-page"
+              style={{
+                width: pageDimensions.width,
+                height: pageDimensions.height,
+                fontSize: `${fontSize}px`,
+              }}
+            >
+              <div
+                className="letter-page-surface"
+                style={{ transform: `translateY(-${pageIndex * pageDimensions.height}px)` }}
               >
-                {pageParagraphs.map((paragraph, paragraphIndex) => (
-                  <p
-                    key={paragraphIndex}
-                    className={isBodyPlaceholder ? 'placeholder-text' : undefined}
-                  >
-                    {paragraph}
-                  </p>
-                ))}
-              </section>
-
-              {isLast && (
-                <>
-                  {gratitudeLine && (
-                    <section
-                      className={`preview-section gratitude-section ${
-                        activeStep === 'closing' ? 'is-highlighted' : ''
-                      }`}
-                    >
-                      <p
-                        className={
-                          gratitudeLine.isPlaceholder ? 'placeholder-text' : undefined
-                        }
-                      >
-                        {gratitudeLine.text}
-                      </p>
-                    </section>
-                  )}
-
-                  <section
-                    className={`preview-section closing-section ${
-                      activeStep === 'closing' ? 'is-highlighted' : ''
-                    }`}
-                  >
-                    {closingLine && (
-                      <p
-                        className={
-                          closingLine.isPlaceholder ? 'placeholder-text' : undefined
-                        }
-                      >
-                        {closingLine.text}
-                      </p>
-                    )}
-                    <div className="signature-block">
-                      {senderNameLine && (
-                        <p
-                          className={
-                            senderNameLine.isPlaceholder ? 'placeholder-text' : undefined
-                          }
-                        >
-                          {senderNameLine.text}
-                        </p>
-                      )}
-                      {senderDesignationLine && (
-                        <p
-                          className={
-                            senderDesignationLine.isPlaceholder ? 'placeholder-text' : undefined
-                          }
-                        >
-                          {senderDesignationLine.text}
-                        </p>
-                      )}
-                      {signatureOrganisationLine && (
-                        <p
-                          className={
-                            signatureOrganisationLine.isPlaceholder
-                              ? 'placeholder-text'
-                              : undefined
-                          }
-                        >
-                          {signatureOrganisationLine.text}
-                        </p>
-                      )}
-                    </div>
-                  </section>
-
-                  {enclosureList.length > 0 && (
-                    <section
-                      className={`preview-section enclosure-section ${
-                        activeStep === 'extras' ? 'is-highlighted' : ''
-                      }`}
-                    >
-                      <p className="section-label">Enclosures:</p>
-                      <ul>
-                        {enclosureList.map((entry, index) => (
-                          <li
-                            key={index}
-                            className={
-                              isEnclosurePlaceholder ? 'placeholder-text' : undefined
-                            }
-                          >
-                            {entry}
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  )}
-
-                  {copyList.length > 0 && (
-                    <section
-                      className={`preview-section copies-section ${
-                        activeStep === 'extras' ? 'is-highlighted' : ''
-                      }`}
-                    >
-                      <p className="section-label">Copy to:</p>
-                      <ul>
-                        {copyList.map((entry, index) => (
-                          <li
-                            key={index}
-                            className={isCopyPlaceholder ? 'placeholder-text' : undefined}
-                          >
-                            {entry}
-                          </li>
-                        ))}
-                      </ul>
-                    </section>
-                  )}
-                </>
-              )}
+                {letterContent}
               </div>
-              <footer className="page-footer">Page {pageIndex + 1}</footer>
-            </article>
-            {!isLast && (
-              <div className="page-break-indicator" aria-hidden="true">
-                <span>Page break</span>
-              </div>
-            )}
-          </div>
-        )
-      })}
+            </div>
+          ))}
+      </div>
+
+      <div className="preview-pagination">
+        <button
+          type="button"
+          onClick={() => scrollToPage(currentPage - 1)}
+          disabled={currentPage === 0}
+        >
+          Previous
+        </button>
+        <span>
+          Page {currentPage + 1} of {totalPages}
+        </span>
+        <button
+          type="button"
+          onClick={() => scrollToPage(currentPage + 1)}
+          disabled={currentPage >= totalPages - 1}
+        >
+          Next
+        </button>
+      </div>
     </div>
   )
 })
