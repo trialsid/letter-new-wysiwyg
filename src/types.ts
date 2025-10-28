@@ -24,6 +24,7 @@ export interface LetterData {
   subject: string
   reference: string
   salutation: string
+  gratitude: string
   body: string
   closing: string
   copies: string

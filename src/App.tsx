@@ -52,6 +52,51 @@ const steps: StepConfig[] = [
   },
 ]
 
+const defaultPreviewContent = {
+  sender: {
+    organisation: 'Department of Rural Development and Panchayat Raj',
+    addressLine1: 'No. 47, Shastri Bhavan',
+    addressLine2: 'Dr Rajendra Prasad Road',
+    city: 'New Delhi',
+    state: 'Delhi',
+    pin: '110001',
+    phone: '011-23097000',
+    email: 'bdo.delhi@gov.in',
+  },
+  recipient: {
+    name: 'The Managing Director',
+    designation: 'National Infrastructure Development Corporation',
+    organisation: 'Nirman Bhawan',
+    addressLine1: 'Maulana Azad Road',
+    addressLine2: 'New Delhi - 110011',
+    city: 'New Delhi',
+    state: 'Delhi',
+    pin: '110011',
+    country: 'India',
+  },
+  subject: 'Request for administrative approval of rural road proposal',
+  reference: 'RDPR/2024/Infra/118',
+  salutation: 'Respected Sir/Madam,',
+  body: [
+    'With due respect, I wish to submit the detailed project report for the proposed upgradation of the village access road connecting Chikkaballapur to the national highway.',
+    'The project has been discussed with the Gram Sabha and has received unanimous approval. The necessary land acquisition details, cost estimates, and utility shifting plans are enclosed for your perusal.',
+    'I request you to kindly accord administrative approval at the earliest so that tendering activities may commence without delay.',
+  ],
+  gratitude: 'Thanking you,',
+  closing: 'Yours faithfully,',
+  senderName: 'Ramesh Kumar',
+  senderDesignation: 'Block Development Officer',
+  senderOrganisation: 'Office of the Block Development Officer',
+  enclosures: [
+    'Annexure I – Detailed project report',
+    'Annexure II – Gram Sabha resolution',
+  ],
+  copies: [
+    'Deputy Commissioner, Chikkaballapur',
+    'Executive Engineer, PWD Division',
+  ],
+}
+
 const emptyLetter: LetterData = {
   senderName: '',
   senderDesignation: '',
@@ -63,7 +108,7 @@ const emptyLetter: LetterData = {
   senderPostalCode: '',
   senderPhone: '',
   senderEmail: '',
-  letterDate: todayIsoDate,
+  letterDate: '',
   recipientName: '',
   recipientDesignation: '',
   recipientOrganisation: '',
@@ -72,12 +117,13 @@ const emptyLetter: LetterData = {
   recipientCity: '',
   recipientState: '',
   recipientPostalCode: '',
-  recipientCountry: 'India',
+  recipientCountry: '',
   subject: '',
   reference: '',
-  salutation: 'Respected Sir/Madam,',
+  salutation: '',
+  gratitude: '',
   body: '',
-  closing: 'Yours faithfully,',
+  closing: '',
   copies: '',
   enclosures: '',
 }
@@ -432,7 +478,16 @@ function App() {
           {activeStepId === 'closing' && (
             <div className="field-grid">
               <label>
-                Closing phrase
+                Courteous closing
+                <input
+                  type="text"
+                  value={letter.gratitude}
+                  onChange={(event) => updateField('gratitude', event.target.value)}
+                  placeholder="Thanking you,"
+                />
+              </label>
+              <label>
+                Sign-off line
                 <input
                   type="text"
                   value={letter.closing}
@@ -526,10 +581,15 @@ interface PreviewProps {
   activeStep: StepId
 }
 
+interface DisplayLine {
+  text: string
+  isPlaceholder: boolean
+}
+
 const PAGE_CHAR_LIMIT = 1300
 
 const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter, activeStep }, ref) => {
-  const paragraphs = useMemo(() => {
+  const bodyParagraphs = useMemo(() => {
     return letter.body
       .split(/\n{2,}/)
       .map((paragraph) => paragraph.trim())
@@ -537,14 +597,17 @@ const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter, active
   }, [letter.body])
 
   const paginatedBody = useMemo(() => {
-    if (paragraphs.length === 0) {
+    const paragraphsToPaginate =
+      bodyParagraphs.length > 0 ? bodyParagraphs : defaultPreviewContent.body
+
+    if (paragraphsToPaginate.length === 0) {
       return [[]]
     }
 
     const pages: string[][] = [[]]
     let currentLength = 0
 
-    paragraphs.forEach((paragraph) => {
+    paragraphsToPaginate.forEach((paragraph) => {
       const text = paragraph.trim()
       const additionLength = text.length
 
@@ -558,11 +621,11 @@ const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter, active
     })
 
     return pages
-  }, [paragraphs])
+  }, [bodyParagraphs])
 
-  const isBodyEmpty = paragraphs.length === 0
+  const isBodyPlaceholder = bodyParagraphs.length === 0
 
-  const ccList = useMemo(
+  const customCopies = useMemo(
     () =>
       letter.copies
         .split(/\n|,/)
@@ -571,7 +634,7 @@ const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter, active
     [letter.copies],
   )
 
-  const enclosureList = useMemo(
+  const customEnclosures = useMemo(
     () =>
       letter.enclosures
         .split(/\n|,/)
@@ -580,30 +643,93 @@ const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter, active
     [letter.enclosures],
   )
 
+  const copyList = customCopies.length > 0 ? customCopies : defaultPreviewContent.copies
+  const isCopyPlaceholder = customCopies.length === 0
+
+  const enclosureList =
+    customEnclosures.length > 0 ? customEnclosures : defaultPreviewContent.enclosures
+  const isEnclosurePlaceholder = customEnclosures.length === 0
+
   const formattedDate = formatIndianDate(letter.letterDate) || formatIndianDate(todayIsoDate)
+  const isDatePlaceholder = !letter.letterDate
+
+  const makeLine = (value: string, fallback: string): DisplayLine | null => {
+    const trimmedValue = value.trim()
+    if (trimmedValue) {
+      return { text: trimmedValue, isPlaceholder: false }
+    }
+
+    const trimmedFallback = fallback.trim()
+    if (!trimmedFallback) {
+      return null
+    }
+
+    return { text: trimmedFallback, isPlaceholder: true }
+  }
 
   const senderAddressLines = [
-    letter.senderOrganisation || 'Organisation / Department',
-    letter.senderAddressLine1 || 'Address line 1',
-    letter.senderAddressLine2,
-    [letter.senderCity, letter.senderState].filter(Boolean).join(', ') || 'City, State/UT',
-    letter.senderPostalCode ? `PIN: ${letter.senderPostalCode}` : 'PIN: _______',
-  ].filter(Boolean)
+    makeLine(letter.senderOrganisation, defaultPreviewContent.sender.organisation),
+    makeLine(letter.senderAddressLine1, defaultPreviewContent.sender.addressLine1),
+    makeLine(letter.senderAddressLine2, defaultPreviewContent.sender.addressLine2),
+    makeLine(
+      [letter.senderCity, letter.senderState].filter(Boolean).join(', '),
+      `${defaultPreviewContent.sender.city}, ${defaultPreviewContent.sender.state}`,
+    ),
+    makeLine(
+      letter.senderPostalCode ? `PIN: ${letter.senderPostalCode}` : '',
+      `PIN: ${defaultPreviewContent.sender.pin}`,
+    ),
+  ].filter((line): line is DisplayLine => Boolean(line))
 
-  const contactLines = [
-    letter.senderPhone ? `Phone: ${letter.senderPhone}` : '',
-    letter.senderEmail ? `Email: ${letter.senderEmail}` : '',
-  ].filter(Boolean)
+  const senderContactLines = [
+    makeLine(
+      letter.senderPhone ? `Phone: ${letter.senderPhone}` : '',
+      defaultPreviewContent.sender.phone ? `Phone: ${defaultPreviewContent.sender.phone}` : '',
+    ),
+    makeLine(
+      letter.senderEmail ? `Email: ${letter.senderEmail}` : '',
+      defaultPreviewContent.sender.email ? `Email: ${defaultPreviewContent.sender.email}` : '',
+    ),
+  ].filter((line): line is DisplayLine => Boolean(line))
 
   const recipientAddressLines = [
-    [letter.recipientName, letter.recipientDesignation].filter(Boolean).join(', ') || 'Recipient name, designation',
-    letter.recipientOrganisation || 'Organisation',
-    letter.recipientAddressLine1 || 'Address line 1',
-    letter.recipientAddressLine2,
-    [letter.recipientCity, letter.recipientState].filter(Boolean).join(', ') || 'City, State/UT',
-    letter.recipientPostalCode ? `PIN: ${letter.recipientPostalCode}` : 'PIN: _______',
-    letter.recipientCountry || 'India',
-  ].filter(Boolean)
+    makeLine(
+      [letter.recipientName, letter.recipientDesignation].filter(Boolean).join(', '),
+      [
+        defaultPreviewContent.recipient.name,
+        defaultPreviewContent.recipient.designation,
+      ]
+        .filter(Boolean)
+        .join(', '),
+    ),
+    makeLine(letter.recipientOrganisation, defaultPreviewContent.recipient.organisation),
+    makeLine(letter.recipientAddressLine1, defaultPreviewContent.recipient.addressLine1),
+    makeLine(letter.recipientAddressLine2, defaultPreviewContent.recipient.addressLine2),
+    makeLine(
+      [letter.recipientCity, letter.recipientState].filter(Boolean).join(', '),
+      `${defaultPreviewContent.recipient.city}, ${defaultPreviewContent.recipient.state}`,
+    ),
+    makeLine(
+      letter.recipientPostalCode ? `PIN: ${letter.recipientPostalCode}` : '',
+      `PIN: ${defaultPreviewContent.recipient.pin}`,
+    ),
+    makeLine(letter.recipientCountry, defaultPreviewContent.recipient.country),
+  ].filter((line): line is DisplayLine => Boolean(line))
+
+  const subjectLine = makeLine(letter.subject, defaultPreviewContent.subject)
+  const referenceLine = makeLine(letter.reference, defaultPreviewContent.reference)
+  const salutationLine = makeLine(letter.salutation, defaultPreviewContent.salutation)
+  const gratitudeLine = makeLine(letter.gratitude, defaultPreviewContent.gratitude)
+  const closingLine = makeLine(letter.closing, defaultPreviewContent.closing)
+  const senderNameLine = makeLine(letter.senderName, defaultPreviewContent.senderName)
+  const senderDesignationLine = makeLine(
+    letter.senderDesignation,
+    defaultPreviewContent.senderDesignation,
+  )
+  const signatureOrganisationLine = makeLine(
+    letter.senderOrganisation,
+    defaultPreviewContent.senderOrganisation,
+  )
 
   return (
     <div className="preview-scroll" ref={ref} aria-live="polite">
@@ -615,89 +741,225 @@ const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter, active
           <article key={pageIndex} className="preview-page">
             <div className="page-inner">
               {isFirst && (
-                <section className={`preview-section sender-section ${activeStep === 'sender' ? 'is-highlighted' : ''}`}>
-                  <div>
-                    {senderAddressLines.map((line, index) => (
-                      <p key={index}>{line}</p>
-                    ))}
-                    {contactLines.map((line, index) => (
-                      <p key={`contact-${index}`}>{line}</p>
-                    ))}
-                  </div>
-                  <p className="letter-date">Date: {formattedDate}</p>
-                </section>
-              )}
-
-              {isFirst && (
-                <section className={`preview-section recipient-section ${activeStep === 'recipient' ? 'is-highlighted' : ''}`}>
-                  {recipientAddressLines.map((line, index) => (
-                    <p key={index}>{line}</p>
-                  ))}
-                </section>
-              )}
-
-              {isFirst && (
-                <section className={`preview-section subject-section ${activeStep === 'subject' ? 'is-highlighted' : ''}`}>
-                  <p className="subject-line">
-                    <span>Subject:</span> {letter.subject || 'Enter a brief subject'}
-                  </p>
-                  {letter.reference && (
-                    <p className="reference-line">
-                      <span>Ref:</span> {letter.reference}
+                <>
+                  <header className="preview-header">
+                    <section
+                      className={`preview-section sender-section ${
+                        activeStep === 'sender' ? 'is-highlighted' : ''
+                      }`}
+                    >
+                      {senderAddressLines.map((line, index) => (
+                        <p
+                          key={index}
+                          className={line.isPlaceholder ? 'placeholder-text' : undefined}
+                        >
+                          {line.text}
+                        </p>
+                      ))}
+                      {senderContactLines.map((line, index) => (
+                        <p
+                          key={`contact-${index}`}
+                          className={line.isPlaceholder ? 'placeholder-text' : undefined}
+                        >
+                          {line.text}
+                        </p>
+                      ))}
+                    </section>
+                    <p
+                      className={`letter-date${isDatePlaceholder ? ' placeholder-text' : ''}`}
+                    >
+                      Date: {formattedDate}
                     </p>
+                  </header>
+
+                  <section
+                    className={`preview-section recipient-section ${
+                      activeStep === 'recipient' ? 'is-highlighted' : ''
+                    }`}
+                  >
+                    <p className="recipient-label">To,</p>
+                    {recipientAddressLines.map((line, index) => (
+                      <p
+                        key={index}
+                        className={line.isPlaceholder ? 'placeholder-text' : undefined}
+                      >
+                        {line.text}
+                      </p>
+                    ))}
+                  </section>
+
+                  {subjectLine && (
+                    <section
+                      className={`preview-section subject-section ${
+                        activeStep === 'subject' ? 'is-highlighted' : ''
+                      }`}
+                    >
+                      <p
+                        className={`subject-line${
+                          subjectLine.isPlaceholder ? ' placeholder-text' : ''
+                        }`}
+                      >
+                        <span>Subject:</span> {subjectLine.text}
+                      </p>
+                    </section>
                   )}
-                </section>
+
+                  {referenceLine && (
+                    <section
+                      className={`preview-section reference-section ${
+                        activeStep === 'subject' ? 'is-highlighted' : ''
+                      }`}
+                    >
+                      <p
+                        className={`reference-line${
+                          referenceLine.isPlaceholder ? ' placeholder-text' : ''
+                        }`}
+                      >
+                        <span>Ref:</span> {referenceLine.text}
+                      </p>
+                    </section>
+                  )}
+
+                  {salutationLine && (
+                    <section
+                      className={`preview-section salutation-section ${
+                        activeStep === 'body' ? 'is-highlighted' : ''
+                      }`}
+                    >
+                      <p
+                        className={
+                          salutationLine.isPlaceholder ? 'placeholder-text' : undefined
+                        }
+                      >
+                        {salutationLine.text}
+                      </p>
+                    </section>
+                  )}
+                </>
               )}
 
-              {isFirst && (
-                <section className={`preview-section salutation-section ${activeStep === 'body' ? 'is-highlighted' : ''}`}>
-                  <p>{letter.salutation || 'Respected Sir/Madam,'}</p>
-                </section>
-              )}
-
-              <section className={`preview-section body-section ${activeStep === 'body' ? 'is-highlighted' : ''}`}>
-                {isBodyEmpty ? (
-                  isFirst ? (
-                    <p className="placeholder">Start typing your message to see it here.</p>
-                  ) : null
-                ) : (
-                  pageParagraphs.map((paragraph, paragraphIndex) => (
-                    <p key={paragraphIndex}>{paragraph}</p>
-                  ))
-                )}
+              <section
+                className={`preview-section body-section ${
+                  activeStep === 'body' ? 'is-highlighted' : ''
+                }`}
+              >
+                {pageParagraphs.map((paragraph, paragraphIndex) => (
+                  <p
+                    key={paragraphIndex}
+                    className={isBodyPlaceholder ? 'placeholder-text' : undefined}
+                  >
+                    {paragraph}
+                  </p>
+                ))}
               </section>
 
               {isLast && (
-                <section className={`preview-section closing-section ${activeStep === 'closing' ? 'is-highlighted' : ''}`}>
-                  <p>{letter.closing || 'Yours faithfully,'}</p>
-                  <div className="signature-block">
-                    <p>{letter.senderName || '(Signature)'}</p>
-                    {letter.senderDesignation && <p>{letter.senderDesignation}</p>}
-                    {letter.senderOrganisation && <p>{letter.senderOrganisation}</p>}
-                  </div>
-                </section>
-              )}
+                <>
+                  {gratitudeLine && (
+                    <section
+                      className={`preview-section gratitude-section ${
+                        activeStep === 'closing' ? 'is-highlighted' : ''
+                      }`}
+                    >
+                      <p
+                        className={
+                          gratitudeLine.isPlaceholder ? 'placeholder-text' : undefined
+                        }
+                      >
+                        {gratitudeLine.text}
+                      </p>
+                    </section>
+                  )}
 
-              {isLast && enclosureList.length > 0 && (
-                <section className={`preview-section enclosure-section ${activeStep === 'extras' ? 'is-highlighted' : ''}`}>
-                  <p className="section-label">Enclosures:</p>
-                  <ul>
-                    {enclosureList.map((entry, index) => (
-                      <li key={index}>{entry}</li>
-                    ))}
-                  </ul>
-                </section>
-              )}
+                  <section
+                    className={`preview-section closing-section ${
+                      activeStep === 'closing' ? 'is-highlighted' : ''
+                    }`}
+                  >
+                    {closingLine && (
+                      <p
+                        className={
+                          closingLine.isPlaceholder ? 'placeholder-text' : undefined
+                        }
+                      >
+                        {closingLine.text}
+                      </p>
+                    )}
+                    <div className="signature-block">
+                      {senderNameLine && (
+                        <p
+                          className={
+                            senderNameLine.isPlaceholder ? 'placeholder-text' : undefined
+                          }
+                        >
+                          {senderNameLine.text}
+                        </p>
+                      )}
+                      {senderDesignationLine && (
+                        <p
+                          className={
+                            senderDesignationLine.isPlaceholder ? 'placeholder-text' : undefined
+                          }
+                        >
+                          {senderDesignationLine.text}
+                        </p>
+                      )}
+                      {signatureOrganisationLine && (
+                        <p
+                          className={
+                            signatureOrganisationLine.isPlaceholder
+                              ? 'placeholder-text'
+                              : undefined
+                          }
+                        >
+                          {signatureOrganisationLine.text}
+                        </p>
+                      )}
+                    </div>
+                  </section>
 
-              {isLast && ccList.length > 0 && (
-                <section className={`preview-section copies-section ${activeStep === 'extras' ? 'is-highlighted' : ''}`}>
-                  <p className="section-label">Copy to:</p>
-                  <ul>
-                    {ccList.map((entry, index) => (
-                      <li key={index}>{entry}</li>
-                    ))}
-                  </ul>
-                </section>
+                  {enclosureList.length > 0 && (
+                    <section
+                      className={`preview-section enclosure-section ${
+                        activeStep === 'extras' ? 'is-highlighted' : ''
+                      }`}
+                    >
+                      <p className="section-label">Enclosures:</p>
+                      <ul>
+                        {enclosureList.map((entry, index) => (
+                          <li
+                            key={index}
+                            className={
+                              isEnclosurePlaceholder ? 'placeholder-text' : undefined
+                            }
+                          >
+                            {entry}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+
+                  {copyList.length > 0 && (
+                    <section
+                      className={`preview-section copies-section ${
+                        activeStep === 'extras' ? 'is-highlighted' : ''
+                      }`}
+                    >
+                      <p className="section-label">Copy to:</p>
+                      <ul>
+                        {copyList.map((entry, index) => (
+                          <li
+                            key={index}
+                            className={isCopyPlaceholder ? 'placeholder-text' : undefined}
+                          >
+                            {entry}
+                          </li>
+                        ))}
+                      </ul>
+                    </section>
+                  )}
+                </>
               )}
             </div>
             <footer className="page-footer">Page {pageIndex + 1}</footer>
