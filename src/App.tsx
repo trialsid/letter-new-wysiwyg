@@ -226,13 +226,13 @@ function App() {
 
   return (
     <div className="app-shell">
-      <aside className="form-pane">
-        <header className="form-header">
+      <section className="composer-pane">
+        <header className="composer-header">
           <div>
             <p className="eyebrow">Letter composer</p>
             <h1>Indian formal letter</h1>
             <p className="subtitle">
-              Work through each step on the left and watch the preview update on the right.
+              Move through the steps, fill in the fields, and see the printable layout update instantly.
             </p>
           </div>
           <button className="reset-button" type="button" onClick={resetLetter}>
@@ -240,320 +240,324 @@ function App() {
           </button>
         </header>
 
-        <nav className="step-list" aria-label="Letter form steps">
-          {steps.map((step, index) => (
-            <button
-              key={step.id}
-              type="button"
-              className={`step-item ${index === activeStepIndex ? 'is-active' : ''}`}
-              onClick={() => setActiveStepIndex(index)}
-            >
-              <span className="step-index">{index + 1}</span>
-              <span>
-                <span className="step-title">{step.title}</span>
-                <span className="step-description">{step.description}</span>
-              </span>
-            </button>
-          ))}
-        </nav>
+        <div className="composer-body">
+          <nav className="step-list" aria-label="Letter form steps">
+            {steps.map((step, index) => (
+              <button
+                key={step.id}
+                type="button"
+                className={`step-item ${index === activeStepIndex ? 'is-active' : ''}`}
+                onClick={() => setActiveStepIndex(index)}
+              >
+                <span className="step-index">{index + 1}</span>
+                <span>
+                  <span className="step-title">{step.title}</span>
+                  <span className="step-description">{step.description}</span>
+                </span>
+              </button>
+            ))}
+          </nav>
 
-        <form className="step-form" onSubmit={handleSubmit}>
-          {activeStepId === 'sender' && (
-            <div className="field-grid">
-              <label>
-                Organisation / Department
-                <input
-                  type="text"
-                  value={letter.senderOrganisation}
-                  onChange={(event) => updateField('senderOrganisation', event.target.value)}
-                  placeholder="e.g. Department of Education"
-                />
-              </label>
-              <label>
-                Address line 1
-                <input
-                  type="text"
-                  value={letter.senderAddressLine1}
-                  onChange={(event) => updateField('senderAddressLine1', event.target.value)}
-                  placeholder="123, MG Road"
-                />
-              </label>
-              <label>
-                Address line 2
-                <input
-                  type="text"
-                  value={letter.senderAddressLine2}
-                  onChange={(event) => updateField('senderAddressLine2', event.target.value)}
-                  placeholder="Near City Metro Station"
-                />
-              </label>
-              <label>
-                City
-                <input
-                  type="text"
-                  value={letter.senderCity}
-                  onChange={(event) => updateField('senderCity', event.target.value)}
-                  placeholder="Bengaluru"
-                />
-              </label>
-              <label>
-                State / UT
-                <input
-                  type="text"
-                  value={letter.senderState}
-                  onChange={(event) => updateField('senderState', event.target.value)}
-                  placeholder="Karnataka"
-                />
-              </label>
-              <label>
-                PIN code
-                <input
-                  type="text"
-                  value={letter.senderPostalCode}
-                  onChange={(event) => updateField('senderPostalCode', event.target.value)}
-                  placeholder="560001"
-                />
-              </label>
-              <label>
-                Phone number
-                <input
-                  type="text"
-                  value={letter.senderPhone}
-                  onChange={(event) => updateField('senderPhone', event.target.value)}
-                  placeholder="+91-9876543210"
-                />
-              </label>
-              <label>
-                Email address
-                <input
-                  type="email"
-                  value={letter.senderEmail}
-                  onChange={(event) => updateField('senderEmail', event.target.value)}
-                  placeholder="contact@example.in"
-                />
-              </label>
-              <label>
-                Letter date
-                <input
-                  type="date"
-                  value={letter.letterDate}
-                  onChange={(event) => updateField('letterDate', event.target.value)}
-                />
-              </label>
+          <form className="step-form" onSubmit={handleSubmit}>
+            <div className="form-fields">
+              {activeStepId === 'sender' && (
+                <div className="field-grid">
+                  <label>
+                    Organisation / Department
+                    <input
+                      type="text"
+                      value={letter.senderOrganisation}
+                      onChange={(event) => updateField('senderOrganisation', event.target.value)}
+                      placeholder="e.g. Department of Education"
+                    />
+                  </label>
+                  <label>
+                    Address line 1
+                    <input
+                      type="text"
+                      value={letter.senderAddressLine1}
+                      onChange={(event) => updateField('senderAddressLine1', event.target.value)}
+                      placeholder="123, MG Road"
+                    />
+                  </label>
+                  <label>
+                    Address line 2
+                    <input
+                      type="text"
+                      value={letter.senderAddressLine2}
+                      onChange={(event) => updateField('senderAddressLine2', event.target.value)}
+                      placeholder="Near City Metro Station"
+                    />
+                  </label>
+                  <label>
+                    City
+                    <input
+                      type="text"
+                      value={letter.senderCity}
+                      onChange={(event) => updateField('senderCity', event.target.value)}
+                      placeholder="Bengaluru"
+                    />
+                  </label>
+                  <label>
+                    State / UT
+                    <input
+                      type="text"
+                      value={letter.senderState}
+                      onChange={(event) => updateField('senderState', event.target.value)}
+                      placeholder="Karnataka"
+                    />
+                  </label>
+                  <label>
+                    PIN code
+                    <input
+                      type="text"
+                      value={letter.senderPostalCode}
+                      onChange={(event) => updateField('senderPostalCode', event.target.value)}
+                      placeholder="560001"
+                    />
+                  </label>
+                  <label>
+                    Phone number
+                    <input
+                      type="text"
+                      value={letter.senderPhone}
+                      onChange={(event) => updateField('senderPhone', event.target.value)}
+                      placeholder="+91-9876543210"
+                    />
+                  </label>
+                  <label>
+                    Email address
+                    <input
+                      type="email"
+                      value={letter.senderEmail}
+                      onChange={(event) => updateField('senderEmail', event.target.value)}
+                      placeholder="contact@example.in"
+                    />
+                  </label>
+                  <label>
+                    Letter date
+                    <input
+                      type="date"
+                      value={letter.letterDate}
+                      onChange={(event) => updateField('letterDate', event.target.value)}
+                    />
+                  </label>
+                </div>
+              )}
+
+              {activeStepId === 'recipient' && (
+                <div className="field-grid">
+                  <label>
+                    Recipient name
+                    <input
+                      type="text"
+                      value={letter.recipientName}
+                      onChange={(event) => updateField('recipientName', event.target.value)}
+                      placeholder="e.g. Shri Rajesh Kumar"
+                    />
+                  </label>
+                  <label>
+                    Designation
+                    <input
+                      type="text"
+                      value={letter.recipientDesignation}
+                      onChange={(event) => updateField('recipientDesignation', event.target.value)}
+                      placeholder="Joint Secretary"
+                    />
+                  </label>
+                  <label>
+                    Organisation
+                    <input
+                      type="text"
+                      value={letter.recipientOrganisation}
+                      onChange={(event) => updateField('recipientOrganisation', event.target.value)}
+                      placeholder="Ministry of Finance"
+                    />
+                  </label>
+                  <label>
+                    Address line 1
+                    <input
+                      type="text"
+                      value={letter.recipientAddressLine1}
+                      onChange={(event) => updateField('recipientAddressLine1', event.target.value)}
+                      placeholder="North Block"
+                    />
+                  </label>
+                  <label>
+                    Address line 2
+                    <input
+                      type="text"
+                      value={letter.recipientAddressLine2}
+                      onChange={(event) => updateField('recipientAddressLine2', event.target.value)}
+                      placeholder="Central Secretariat"
+                    />
+                  </label>
+                  <label>
+                    City
+                    <input
+                      type="text"
+                      value={letter.recipientCity}
+                      onChange={(event) => updateField('recipientCity', event.target.value)}
+                      placeholder="New Delhi"
+                    />
+                  </label>
+                  <label>
+                    State / UT
+                    <input
+                      type="text"
+                      value={letter.recipientState}
+                      onChange={(event) => updateField('recipientState', event.target.value)}
+                      placeholder="Delhi"
+                    />
+                  </label>
+                  <label>
+                    PIN code
+                    <input
+                      type="text"
+                      value={letter.recipientPostalCode}
+                      onChange={(event) => updateField('recipientPostalCode', event.target.value)}
+                      placeholder="110001"
+                    />
+                  </label>
+                  <label>
+                    Country
+                    <input
+                      type="text"
+                      value={letter.recipientCountry}
+                      onChange={(event) => updateField('recipientCountry', event.target.value)}
+                      placeholder="India"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {activeStepId === 'subject' && (
+                <div className="field-grid">
+                  <label>
+                    Subject line
+                    <input
+                      type="text"
+                      value={letter.subject}
+                      onChange={(event) => updateField('subject', event.target.value)}
+                      placeholder="Request for sanction of funds"
+                    />
+                  </label>
+                  <label>
+                    Reference (optional)
+                    <input
+                      type="text"
+                      value={letter.reference}
+                      onChange={(event) => updateField('reference', event.target.value)}
+                      placeholder="Ref: No. 23/2024"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {activeStepId === 'body' && (
+                <div className="field-grid">
+                  <label>
+                    Salutation
+                    <input
+                      type="text"
+                      value={letter.salutation}
+                      onChange={(event) => updateField('salutation', event.target.value)}
+                      placeholder="Respected Sir/Madam,"
+                    />
+                  </label>
+                  <label className="textarea-field">
+                    Letter body
+                    <textarea
+                      rows={12}
+                      value={letter.body}
+                      onChange={(event) => updateField('body', event.target.value)}
+                      placeholder={'Introduce the subject, provide supporting details, and close with a clear request. Separate paragraphs with a blank line.'}
+                    />
+                  </label>
+                </div>
+              )}
+
+              {activeStepId === 'closing' && (
+                <div className="field-grid">
+                  <label>
+                    Courteous closing
+                    <input
+                      type="text"
+                      value={letter.gratitude}
+                      onChange={(event) => updateField('gratitude', event.target.value)}
+                      placeholder="Thanking you,"
+                    />
+                  </label>
+                  <label>
+                    Sign-off line
+                    <input
+                      type="text"
+                      value={letter.closing}
+                      onChange={(event) => updateField('closing', event.target.value)}
+                      placeholder="Yours faithfully,"
+                    />
+                  </label>
+                  <label>
+                    Sender name
+                    <input
+                      type="text"
+                      value={letter.senderName}
+                      onChange={(event) => updateField('senderName', event.target.value)}
+                      placeholder="(Signature)"
+                    />
+                  </label>
+                  <label>
+                    Designation
+                    <input
+                      type="text"
+                      value={letter.senderDesignation}
+                      onChange={(event) => updateField('senderDesignation', event.target.value)}
+                      placeholder="Block Education Officer"
+                    />
+                  </label>
+                </div>
+              )}
+
+              {activeStepId === 'extras' && (
+                <div className="field-grid">
+                  <label className="textarea-field">
+                    Enclosures (one per line)
+                    <textarea
+                      rows={5}
+                      value={letter.enclosures}
+                      onChange={(event) => updateField('enclosures', event.target.value)}
+                      placeholder={'1. Copy of the utilisation certificate\n2. Annexure A'}
+                    />
+                  </label>
+                  <label className="textarea-field">
+                    Copy to (one per line)
+                    <textarea
+                      rows={5}
+                      value={letter.copies}
+                      onChange={(event) => updateField('copies', event.target.value)}
+                      placeholder={'Principal, Government High School\nDistrict Treasury Officer'}
+                    />
+                  </label>
+                </div>
+              )}
             </div>
-          )}
 
-          {activeStepId === 'recipient' && (
-            <div className="field-grid">
-              <label>
-                Recipient name
-                <input
-                  type="text"
-                  value={letter.recipientName}
-                  onChange={(event) => updateField('recipientName', event.target.value)}
-                  placeholder="e.g. Shri Rajesh Kumar"
-                />
-              </label>
-              <label>
-                Designation
-                <input
-                  type="text"
-                  value={letter.recipientDesignation}
-                  onChange={(event) => updateField('recipientDesignation', event.target.value)}
-                  placeholder="Joint Secretary"
-                />
-              </label>
-              <label>
-                Organisation
-                <input
-                  type="text"
-                  value={letter.recipientOrganisation}
-                  onChange={(event) => updateField('recipientOrganisation', event.target.value)}
-                  placeholder="Ministry of Finance"
-                />
-              </label>
-              <label>
-                Address line 1
-                <input
-                  type="text"
-                  value={letter.recipientAddressLine1}
-                  onChange={(event) => updateField('recipientAddressLine1', event.target.value)}
-                  placeholder="North Block"
-                />
-              </label>
-              <label>
-                Address line 2
-                <input
-                  type="text"
-                  value={letter.recipientAddressLine2}
-                  onChange={(event) => updateField('recipientAddressLine2', event.target.value)}
-                  placeholder="Central Secretariat"
-                />
-              </label>
-              <label>
-                City
-                <input
-                  type="text"
-                  value={letter.recipientCity}
-                  onChange={(event) => updateField('recipientCity', event.target.value)}
-                  placeholder="New Delhi"
-                />
-              </label>
-              <label>
-                State / UT
-                <input
-                  type="text"
-                  value={letter.recipientState}
-                  onChange={(event) => updateField('recipientState', event.target.value)}
-                  placeholder="Delhi"
-                />
-              </label>
-              <label>
-                PIN code
-                <input
-                  type="text"
-                  value={letter.recipientPostalCode}
-                  onChange={(event) => updateField('recipientPostalCode', event.target.value)}
-                  placeholder="110001"
-                />
-              </label>
-              <label>
-                Country
-                <input
-                  type="text"
-                  value={letter.recipientCountry}
-                  onChange={(event) => updateField('recipientCountry', event.target.value)}
-                  placeholder="India"
-                />
-              </label>
+            <div className="step-controls">
+              <button
+                type="button"
+                className="secondary"
+                onClick={() => setActiveStepIndex((prev) => Math.max(prev - 1, 0))}
+                disabled={!canGoBack}
+              >
+                Previous
+              </button>
+              <button type="submit" className="primary">
+                {canGoForward ? 'Next step' : 'Stay on this step'}
+              </button>
             </div>
-          )}
-
-          {activeStepId === 'subject' && (
-            <div className="field-grid">
-              <label>
-                Subject line
-                <input
-                  type="text"
-                  value={letter.subject}
-                  onChange={(event) => updateField('subject', event.target.value)}
-                  placeholder="Request for sanction of funds"
-                />
-              </label>
-              <label>
-                Reference (optional)
-                <input
-                  type="text"
-                  value={letter.reference}
-                  onChange={(event) => updateField('reference', event.target.value)}
-                  placeholder="Ref: No. 23/2024"
-                />
-              </label>
-            </div>
-          )}
-
-          {activeStepId === 'body' && (
-            <div className="field-grid">
-              <label>
-                Salutation
-                <input
-                  type="text"
-                  value={letter.salutation}
-                  onChange={(event) => updateField('salutation', event.target.value)}
-                  placeholder="Respected Sir/Madam,"
-                />
-              </label>
-              <label className="textarea-field">
-                Letter body
-                <textarea
-                  rows={12}
-                  value={letter.body}
-                  onChange={(event) => updateField('body', event.target.value)}
-                  placeholder={'Introduce the subject, provide supporting details, and close with a clear request. Separate paragraphs with a blank line.'}
-                />
-              </label>
-            </div>
-          )}
-
-          {activeStepId === 'closing' && (
-            <div className="field-grid">
-              <label>
-                Courteous closing
-                <input
-                  type="text"
-                  value={letter.gratitude}
-                  onChange={(event) => updateField('gratitude', event.target.value)}
-                  placeholder="Thanking you,"
-                />
-              </label>
-              <label>
-                Sign-off line
-                <input
-                  type="text"
-                  value={letter.closing}
-                  onChange={(event) => updateField('closing', event.target.value)}
-                  placeholder="Yours faithfully,"
-                />
-              </label>
-              <label>
-                Sender name
-                <input
-                  type="text"
-                  value={letter.senderName}
-                  onChange={(event) => updateField('senderName', event.target.value)}
-                  placeholder="(Signature)"
-                />
-              </label>
-              <label>
-                Designation
-                <input
-                  type="text"
-                  value={letter.senderDesignation}
-                  onChange={(event) => updateField('senderDesignation', event.target.value)}
-                  placeholder="Block Education Officer"
-                />
-              </label>
-            </div>
-          )}
-
-          {activeStepId === 'extras' && (
-            <div className="field-grid">
-              <label className="textarea-field">
-                Enclosures (one per line)
-                <textarea
-                  rows={5}
-                  value={letter.enclosures}
-                  onChange={(event) => updateField('enclosures', event.target.value)}
-                  placeholder={'1. Copy of the utilisation certificate\n2. Annexure A'}
-                />
-              </label>
-              <label className="textarea-field">
-                Copy to (one per line)
-                <textarea
-                  rows={5}
-                  value={letter.copies}
-                  onChange={(event) => updateField('copies', event.target.value)}
-                  placeholder={'Principal, Government High School\nDistrict Treasury Officer'}
-                />
-              </label>
-            </div>
-          )}
-
-          <div className="step-controls">
-            <button
-              type="button"
-              className="secondary"
-              onClick={() => setActiveStepIndex((prev) => Math.max(prev - 1, 0))}
-              disabled={!canGoBack}
-            >
-              Previous
-            </button>
-            <button type="submit" className="primary">
-              {canGoForward ? 'Next step' : 'Stay on this step'}
-            </button>
-          </div>
-        </form>
-      </aside>
+          </form>
+        </div>
+      </section>
 
       <main className="preview-pane">
         <div className="preview-toolbar">
@@ -738,11 +742,12 @@ const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter, active
         const isLast = pageIndex === paginatedBody.length - 1
 
         return (
-          <article key={pageIndex} className="preview-page">
-            <div className="page-inner">
-              {isFirst && (
-                <>
-                  <header className="preview-header">
+          <div key={pageIndex} className="preview-sheet">
+            <article className="preview-page">
+              <div className="page-inner">
+                {isFirst && (
+                  <>
+                    <header className="preview-header">
                     <section
                       className={`preview-section sender-section ${
                         activeStep === 'sender' ? 'is-highlighted' : ''
@@ -961,9 +966,15 @@ const LetterPreview = forwardRef<HTMLDivElement, PreviewProps>(({ letter, active
                   )}
                 </>
               )}
-            </div>
-            <footer className="page-footer">Page {pageIndex + 1}</footer>
-          </article>
+              </div>
+              <footer className="page-footer">Page {pageIndex + 1}</footer>
+            </article>
+            {!isLast && (
+              <div className="page-break-indicator" aria-hidden="true">
+                <span>Page break</span>
+              </div>
+            )}
+          </div>
         )
       })}
     </div>
